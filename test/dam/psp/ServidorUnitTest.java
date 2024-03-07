@@ -9,12 +9,16 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.security.Key;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateEncodingException;
 import java.util.Base64;
+
+import javax.crypto.Cipher;
+import javax.crypto.NoSuchPaddingException;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -296,11 +300,27 @@ class ServidorUnitTest {
 	@DisplayName("(3 puntos) Petición \"cifrar\"")
 	void test17() {
 		try (Socket socket = new Socket("localhost", 9000)) {
+			StringBuilder sb = new StringBuilder();
 			socket.setSoTimeout(10000);
-			
+			String accion = "cifrar";
+			String alias = "psp";
 			String s = "Entra en tu cuenta de GitHub y haz un fork del repositorio https://github.com/DamFleming/PSP20240304 Cuando se haya completado el fork, clona desde Eclipse tu nuevo repositorio e importa el proyecto. Renombra el proyecto con tu nombre usando el formato siguiente: apellidos, nombre. Deshabilita cualquier conexión a Internet en el ordenador donde realizas el examen. Cuando finalices el examen: Exporta el proyecto a un archivo comprimido. Pide permiso para habilitar de nuevo la conexión de Internet. Entrega el archivo comprimido con el proyecto del examen en la tarea de Teams. Ejecuta un commit & push con el repositorio";
 			DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+			out.writeUTF(accion);
+			out.writeUTF(alias);
 			out.writeUTF(s);
+			
+			DataInputStream in = new DataInputStream(socket.getInputStream());
+			try {
+				Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+				while (true) {
+					String[] split = in.readUTF().split(":");
+					sb.append(new String(cipher.doFinal(Base64.getDecoder().decode(split[1]))));
+//					assertEquals("OK")
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
 		} catch (IOException e) {
 			fail(e.getLocalizedMessage());
 		}
