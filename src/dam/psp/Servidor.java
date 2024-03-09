@@ -183,69 +183,60 @@ public class Servidor extends Thread {
 	}
 
 	private static void funcionCifrar(Socket socket, DataInputStream in, DataOutputStream out) {
-		String s = null;
+		String alias = "";
 		try {
-			KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
-			String aliasCifrar = in.readUTF();
-			if (aliasCifrar.isBlank() || aliasCifrar == null) {
-				System.err.println("ERROR:Se esperaba un alias");
-				out.writeUTF("ERROR:Se esperaba un alias");
-			}
-			ks.load(null);
-			PublicKey pubKey = ks.getCertificate(aliasCifrar).getPublicKey();
-			if (pubKey.getAlgorithm() != "RSA") {
-				System.err.println("ERROR:'alias' no contiene una clave RSA");
-				out.writeUTF("ERROR:'alias' no contiene una clave RSA");
-			}
-
-			Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-			cipher.init(Cipher.ENCRYPT_MODE, pubKey);
-			byte[] buffer = new byte[256];
-			int n;
-			while ((n = in.read(buffer)) != -1) {
-				s = Base64.getEncoder().encodeToString(cipher.doFinal(buffer, 0, n));
-				out.writeUTF("OK:" + s);
+			KeyStore ks = KeyStore.getInstance("pkcs12");
+			ks.load(new FileInputStream(System.getProperty("user.dir") + "/res/keystore.p12"), "practicas".toCharArray());
+			
+			alias = in.readUTF();
+			byte[] datos = in.readAllBytes();
+			if (!ks.containsAlias(alias)) {
+				out.writeUTF("ERROR:'" + alias + "' no es un certificado");
 				out.flush();
-			}
-			out.close();
-			if (s == null)
+			} else if (ks.containsAlias(alias) && ks.isCertificateEntry(alias)) {
+				//TODO
+			} else if (datos.length>0) {
+				out.writeUTF("ERROR:'" + alias + "' no contiene una clave RSA");
+				out.flush(); 
+			} else {
 				out.writeUTF("ERROR:Se esperaban datos");
-			else {
-				out.writeUTF("FIN:CIFRADO");
-				out.flush();
+				out.flush(); 
 			}
 		} catch (SocketTimeoutException e) {
 			try {
 				out.writeUTF("ERROR:Read timed out");
+				out.flush();
 			} catch (IOException e1) {
 				e1.printStackTrace();
 			}
 		} catch (EOFException e) {
+			if (alias.isBlank())
+				try {
+					out.writeUTF("ERROR:Se esperaba un alias");
+					out.flush();
+				} catch (IOException e1) {
+					e1.printStackTrace();
+				}
+			else
+				try {
+					out.writeUTF("ERROR:Read timed out");
+					out.flush();
+				} catch (IOException e1) {
+					e1.printStackTrace();
+				}
+		} catch (IllegalArgumentException e) {
 			try {
-				out.writeUTF("ERROR:Se esperaba un alias");
+				out.writeUTF("ERROR:Se esperaba Base64");
 			} catch (IOException e1) {
 				e1.printStackTrace();
 			}
-		} catch (KeyStoreException e) {
-			e.printStackTrace();
-		} catch (CertificateException e) {
-			try {
-				System.err.println("ERROR:'alias' no es un certificado");
-				out.writeUTF("ERROR:'alias' no es un certificado");
-			} catch (IOException e1) {
-				e1.printStackTrace();
-			}
-		} catch (IllegalBlockSizeException e) {
-			e.printStackTrace();
-		} catch (BadPaddingException e) {
-			e.printStackTrace();
-		} catch (NoSuchPaddingException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-
 		} catch (NoSuchAlgorithmException e) {
 			e.printStackTrace();
-		} catch (InvalidKeyException e) {
+		} catch (CertificateException e) {
+			e.printStackTrace();
+		} catch (KeyStoreException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
 			e.printStackTrace();
 		} finally {
 			try {

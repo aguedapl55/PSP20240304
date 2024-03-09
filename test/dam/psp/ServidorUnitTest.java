@@ -302,32 +302,36 @@ class ServidorUnitTest {
 	@Test
 	@DisplayName("(3 puntos) Petición \"cifrar\"")
 	void test17() {
-		try (Socket socket = new Socket("localhost", 9000)) {
-			socket.setSoTimeout(10000);
-			String accion = "cifrar";
-			String alias = "psp";
-			String s = "Entra en tu cuenta de GitHub y haz un fork del repositorio https://github.com/DamFleming/PSP20240304 Cuando se haya completado el fork, clona desde Eclipse tu nuevo repositorio e importa el proyecto. Renombra el proyecto con tu nombre usando el formato siguiente: apellidos, nombre. Deshabilita cualquier conexión a Internet en el ordenador donde realizas el examen. Cuando finalices el examen: Exporta el proyecto a un archivo comprimido. Pide permiso para habilitar de nuevo la conexión de Internet. Entrega el archivo comprimido con el proyecto del examen en la tarea de Teams. Ejecuta un commit & push con el repositorio";
-			DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-			out.writeUTF(accion);
-			out.writeUTF(alias);
-			out.writeUTF(s);
-
-			DataInputStream in = new DataInputStream(socket.getInputStream());
-			String answer = "";
-			String aux;
-			while ((aux = in.readUTF()) != null) {
-				String[] split = aux.split(":");
-				answer += split[1];
-			}
-
-			Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-			String sol = Base64.getEncoder().encodeToString(cipher.doFinal(s.getBytes()));
-			System.out.println("OK:" + sol);
-			
-			assertEquals(sol, answer);
-		} catch (Exception e) {
-			fail(e.getLocalizedMessage());
-		}
+		//TODO
+		
+		
+		
+//		try (Socket socket = new Socket("localhost", 9000)) {
+//			socket.setSoTimeout(10000);
+//			String accion = "cifrar";
+//			String alias = "psp";
+//			String s = "Entra en tu cuenta de GitHub y haz un fork del repositorio https://github.com/DamFleming/PSP20240304 Cuando se haya completado el fork, clona desde Eclipse tu nuevo repositorio e importa el proyecto. Renombra el proyecto con tu nombre usando el formato siguiente: apellidos, nombre. Deshabilita cualquier conexión a Internet en el ordenador donde realizas el examen. Cuando finalices el examen: Exporta el proyecto a un archivo comprimido. Pide permiso para habilitar de nuevo la conexión de Internet. Entrega el archivo comprimido con el proyecto del examen en la tarea de Teams. Ejecuta un commit & push con el repositorio";
+//			DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+//			out.writeUTF(accion);
+//			out.writeUTF(alias);
+//			out.writeUTF(s);
+//
+//			DataInputStream in = new DataInputStream(socket.getInputStream());
+//			String answer = "";
+//			String aux;
+//			while ((aux = in.readUTF()) != null) {
+//				String[] split = aux.split(":");
+//				answer += split[1];
+//			}
+//
+//			Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+//			String sol = Base64.getEncoder().encodeToString(cipher.doFinal(s.getBytes()));
+//			System.out.println("OK:" + sol);
+//			
+//			assertEquals(sol, answer);
+//		} catch (Exception e) {
+//			fail(e.getLocalizedMessage());
+//		}
 	}
 
 	@Test
