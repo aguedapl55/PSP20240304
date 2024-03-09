@@ -194,7 +194,35 @@ public class Servidor extends Thread {
 				out.writeUTF("ERROR:'" + alias + "' no es un certificado");
 				out.flush();
 			} else if (ks.containsAlias(alias) && ks.isCertificateEntry(alias)) {
-				//TODO
+				
+				try {
+					
+					Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+					cipher.init(Cipher.ENCRYPT_MODE, ks.getCertificate(alias));
+					
+					int n = 0; 
+					byte[] buffer = new byte[256];
+					boolean aux = false; 
+					ByteArrayInputStream bytein = new ByteArrayInputStream(datos);
+					while ((n = bytein.read(buffer)) != -1) {
+						aux = true; 
+						byte[] b = cipher.doFinal(buffer);
+						String b64HashB64 = Base64.getEncoder().encodeToString(b);
+						out.writeUTF("OK:" + b64HashB64);
+						System.out.println("OK:" + b64HashB64);
+					}
+					if (aux = true) {
+						out.writeUTF("FIN:CIFRADO");
+						out.flush(); 
+						System.out.println("FIN");
+					} else {
+						//creo que no tiene manera de llegar a esto pero por si acaso
+						out.writeUTF("ERROR:Se esperaban datos");
+					}
+				} catch (NoSuchPaddingException | InvalidKeyException | IllegalBlockSizeException | BadPaddingException e) {
+					e.printStackTrace();
+				}
+				
 			} else if (datos.length>0) {
 				out.writeUTF("ERROR:'" + alias + "' no contiene una clave RSA");
 				out.flush(); 
@@ -219,24 +247,12 @@ public class Servidor extends Thread {
 				}
 			else
 				try {
-					out.writeUTF("ERROR:Read timed out");
+					out.writeUTF("ERROR:Se esperaban datos");
 					out.flush();
 				} catch (IOException e1) {
 					e1.printStackTrace();
 				}
-		} catch (IllegalArgumentException e) {
-			try {
-				out.writeUTF("ERROR:Se esperaba Base64");
-			} catch (IOException e1) {
-				e1.printStackTrace();
-			}
-		} catch (NoSuchAlgorithmException e) {
-			e.printStackTrace();
-		} catch (CertificateException e) {
-			e.printStackTrace();
-		} catch (KeyStoreException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
+		} catch (NoSuchAlgorithmException | CertificateException | KeyStoreException | IOException e) {
 			e.printStackTrace();
 		} finally {
 			try {

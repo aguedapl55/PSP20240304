@@ -4,12 +4,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.security.InvalidKeyException;
 import java.security.Key;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -18,7 +21,9 @@ import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateEncodingException;
 import java.util.Base64;
 
+import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -304,7 +309,64 @@ class ServidorUnitTest {
 	void test17() {
 		//TODO
 		
-		
+		try (Socket socket = new Socket("localhost", 9000)) {
+			
+			socket.setSoTimeout(10000);
+			
+			DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+			out.writeUTF("cert");
+			out.writeUTF("psp");
+			String linea = "Entra en tu cuenta de GitHub y haz un fork del repositorio https://github.com/DamFleming/PSP20240304 Cuando se haya completado el fork, clona desde Eclipse tu nuevo repositorio e importa el proyecto. Renombra el proyecto con tu nombre usando el formato siguiente: apellidos, nombre. Deshabilita cualquier conexión a Internet en el ordenador donde realizas el examen. Cuando finalices el examen: Exporta el proyecto a un archivo comprimido. Pide permiso para habilitar de nuevo la conexión de Internet. Entrega el archivo comprimido con el proyecto del examen en la tarea de Teams. Ejecuta un commit & push con el repositorio";
+			out.write(linea.getBytes());
+			socket.shutdownOutput();
+			
+			DataInputStream in = new DataInputStream(socket.getInputStream());
+			String s; 
+			String answer = "";
+			while ((s = in.readUTF()) != "FIN:CIFRADO") {
+				answer += s.split(":")[1];
+			}
+			
+			Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+			cipher.init(Cipher.ENCRYPT_MODE, ks.getCertificate("psp"));
+			
+			int n = 0; 
+			byte[] buffer = new byte[256];
+			ByteArrayInputStream bytein = new ByteArrayInputStream(linea.getBytes());
+			String sol = "";
+			while ((n = bytein.read(buffer)) != -1) {
+				byte[] b = cipher.doFinal(buffer);
+				String b64HashB64 = Base64.getEncoder().encodeToString(b);
+				sol += b64HashB64;
+			}
+			System.out.println("sol: " + sol);
+			System.out.println("ans: " + answer);
+			assertEquals(answer.getBytes(), sol.getBytes());
+		} catch (UnknownHostException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (NoSuchAlgorithmException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (NoSuchPaddingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InvalidKeyException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (KeyStoreException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IllegalBlockSizeException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (BadPaddingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} 
 		
 //		try (Socket socket = new Socket("localhost", 9000)) {
 //			socket.setSoTimeout(10000);
