@@ -29,16 +29,17 @@ import javax.crypto.NoSuchPaddingException;
 
 public class Servidor extends Thread {
 	private Socket socket;
+
 	public Servidor(Socket socket) throws SocketException {
 		this.socket = socket;
 		socket.setSoTimeout(5000);
 	}
-	
+
 	public static void main(String[] args) {
 		ServerSocket serverSocket;
 		try {
 			serverSocket = new ServerSocket(9000);
-			
+
 			while (true) {
 				Socket socket = serverSocket.accept();
 				new Servidor(socket).start();
@@ -82,29 +83,24 @@ public class Servidor extends Thread {
 			}
 		}
 	}
-	
-	
+
 	public static void funcionHash(Socket socket, DataInputStream in, DataOutputStream out) {
 		String algoritmo = null;
 		try {
-			System.out.println("funcionHash");
 			algoritmo = in.readUTF();
-			if (algoritmo.isBlank() || algoritmo == null) {
-				System.err.println("ERROR:Se esperaba un algoritmo");
-				out.writeUTF("ERROR:Se esperaba un algoritmo");
-			}
 			byte[] mensaje = in.readAllBytes();
-//			if (mensaje.isBlank() || mensaje == null) {
-//				System.err.println("ERROR:Se esperaban datos");
-//				out.writeUTF("ERROR:Se esperaban datos");
-//			}
-
-			MessageDigest md = MessageDigest.getInstance(algoritmo);
-			String resultado = Base64.getEncoder().encodeToString(md.digest(mensaje));
-			System.out.println("OK:" + resultado);
-			out.writeUTF("OK:" + resultado);
-			out.flush();
-		} catch (NoSuchAlgorithmException e) {
+			
+			if (mensaje.length > 0) {
+				MessageDigest md = MessageDigest.getInstance(algoritmo);
+				String resultado = Base64.getEncoder().encodeToString(md.digest(mensaje));
+				System.out.println("OK:" + resultado);
+				out.writeUTF("OK:" + resultado);
+				out.flush();
+			} else {
+				out.writeUTF("ERROR:Se esperaban datos");
+				out.flush();
+			}
+		} catch (NoSuchAlgorithmException | EOFException e) {
 			try {
 				out.writeUTF("ERROR:Se esperaba un algoritmo");
 				out.flush();
@@ -114,15 +110,6 @@ public class Servidor extends Thread {
 		} catch (SocketTimeoutException e) {
 			try {
 				out.writeUTF("ERROR:Read timed out");
-			} catch (IOException e1) {
-				e1.printStackTrace();
-			}
-		} catch (EOFException e) {
-			try {
-				out.writeUTF("ERROR:Se esperaba un algoritmo");
-//				if (algoritmo == null)
-//				else 
-//					out.writeUTF("ERROR:Se esperaban datos");
 			} catch (IOException e1) {
 				e1.printStackTrace();
 			}
@@ -138,11 +125,11 @@ public class Servidor extends Thread {
 	}
 
 	private static void funcionCert(Socket socket, DataInputStream in, DataOutputStream out) {
-		
+		String aliasCert = "";
 		try {
 			KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
 			ks.load(null);
-			String aliasCert = in.readUTF();
+			aliasCert = in.readUTF();
 //			if (aliasCert.isBlank() || aliasCert == null) {
 //				System.err.println("ERROR:Se esperaba un alias");
 //				out.writeUTF("ERROR:Se esperaba un alias");
@@ -171,11 +158,18 @@ public class Servidor extends Thread {
 				e1.printStackTrace();
 			}
 		} catch (EOFException e) {
-			try {
-				out.writeUTF("ERROR:Se esperaba una petición");
-			} catch (IOException e1) {
-				e1.printStackTrace();
-			}
+			if (aliasCert.isBlank())
+				try {
+					out.writeUTF("ERROR:Se esperaba un alias");
+				} catch (IOException e1) {
+					e1.printStackTrace();
+				}
+			else
+				try {
+					out.writeUTF("ERROR:Se esperaba un alias");
+				} catch (IOException e1) {
+					e1.printStackTrace();
+				}
 		} catch (KeyStoreException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -220,8 +214,10 @@ public class Servidor extends Thread {
 			while ((n = in.read(buffer)) != -1) {
 				s = Base64.getEncoder().encodeToString(cipher.doFinal(buffer, 0, n));
 				out.writeUTF("OK:" + s);
+				System.out.println("OK:" + s);
 				out.flush();
 			}
+			out.close();
 			if (s == null)
 				out.writeUTF("ERROR:Se esperaban datos");
 			else {
@@ -236,7 +232,7 @@ public class Servidor extends Thread {
 			}
 		} catch (EOFException e) {
 			try {
-				out.writeUTF("ERROR:Se esperaba una petición");
+				out.writeUTF("ERROR:Se esperaba un alias");
 			} catch (IOException e1) {
 				e1.printStackTrace();
 			}
