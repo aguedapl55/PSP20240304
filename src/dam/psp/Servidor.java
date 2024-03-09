@@ -89,11 +89,10 @@ public class Servidor extends Thread {
 		try {
 			algoritmo = in.readUTF();
 			byte[] mensaje = in.readAllBytes();
-			
+
 			if (mensaje.length > 0) {
 				MessageDigest md = MessageDigest.getInstance(algoritmo);
 				String resultado = Base64.getEncoder().encodeToString(md.digest(mensaje));
-				System.out.println("OK:" + resultado);
 				out.writeUTF("OK:" + resultado);
 				out.flush();
 			} else {
@@ -125,62 +124,54 @@ public class Servidor extends Thread {
 	}
 
 	private static void funcionCert(Socket socket, DataInputStream in, DataOutputStream out) {
-		String aliasCert = "";
+		String alias = "";
 		try {
+			alias = in.readUTF();
 			KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
 			ks.load(null);
-			aliasCert = in.readUTF();
-//			if (aliasCert.isBlank() || aliasCert == null) {
-//				System.err.println("ERROR:Se esperaba un alias");
-//				out.writeUTF("ERROR:Se esperaba un alias");
-//			}
-			String codificacion = in.readUTF(); // HASH
-//			if (codificacion.isBlank() || codificacion == null) {
-//				System.err.println("ERROR:Se esperaba un certificado");
-//				out.writeUTF("ERROR:Se esperaba un certificado");
-//			}
+
+			String codificacion = in.readUTF();
+			byte[] bytesCodif = Base64.getDecoder().decode(codificacion.getBytes());
+
 			CertificateFactory cf = CertificateFactory.getInstance("X.509");
-			byte[] b = Base64.getDecoder().decode(codificacion.getBytes());
-			Certificate cert = cf.generateCertificate(new ByteArrayInputStream(b));
+			Certificate cert = cf.generateCertificate(new ByteArrayInputStream(bytesCodif));
 
-			ks.setCertificateEntry(aliasCert, cert);
+			ks.setCertificateEntry(alias, cert);
 
-			MessageDigest md = MessageDigest.getInstance("SHA-256");
+			MessageDigest md;
+			md = MessageDigest.getInstance("SHA-256");
 			md.update(codificacion.getBytes());
-			md.digest();
-			String hash = Base64.getEncoder().encodeToString(md.digest());
-			out.writeUTF("OK:" + hash);
-			out.flush();
-		} catch (SocketTimeoutException e) {
-			try {
-				out.writeUTF("ERROR:Read timed out");
-			} catch (IOException e1) {
-				e1.printStackTrace();
-			}
+			String b64HashB64 = Base64.getEncoder().encodeToString(md.digest());
+			out.writeUTF("OK:" + b64HashB64);
 		} catch (EOFException e) {
-			if (aliasCert.isBlank())
+			if (alias.isBlank())
 				try {
 					out.writeUTF("ERROR:Se esperaba un alias");
+					out.flush();
 				} catch (IOException e1) {
 					e1.printStackTrace();
 				}
 			else
 				try {
-					out.writeUTF("ERROR:Se esperaba un alias");
+					out.writeUTF("ERROR:Se esperaba un certificado");
+					out.flush();
 				} catch (IOException e1) {
 					e1.printStackTrace();
 				}
-		} catch (KeyStoreException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (CertificateException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (NoSuchAlgorithmException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
+		} catch (SocketTimeoutException e) {
+			try {
+				out.writeUTF("ERROR:Read timed out");
+				out.flush();
+			} catch (IOException e1) {
+				e1.printStackTrace();
+			}
+		} catch (IllegalArgumentException e) {
+			try {
+				out.writeUTF("ERROR:Se esperaba Base64");
+			} catch (IOException e1) {
+				e1.printStackTrace();
+			}
+		} catch (IOException | KeyStoreException | NoSuchAlgorithmException | CertificateException e) {
 			e.printStackTrace();
 		} finally {
 			try {
@@ -214,7 +205,6 @@ public class Servidor extends Thread {
 			while ((n = in.read(buffer)) != -1) {
 				s = Base64.getEncoder().encodeToString(cipher.doFinal(buffer, 0, n));
 				out.writeUTF("OK:" + s);
-				System.out.println("OK:" + s);
 				out.flush();
 			}
 			out.close();
