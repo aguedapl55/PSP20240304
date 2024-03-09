@@ -18,6 +18,7 @@ import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateEncodingException;
 import java.util.Base64;
 
@@ -307,93 +308,48 @@ class ServidorUnitTest {
 	@Test
 	@DisplayName("(3 puntos) Petición \"cifrar\"")
 	void test17() {
-		//TODO
-		
+		String linea = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam euismod mauris ac enim vulputate condimentum. Sed felis ipsum, consectetur at urna vel, iaculis ornare libero. Aenean quis dolor orci. Fusce efficitur sed sapien et maximus. Aliquam dignissim diam leo, non vulputate dui maximus sed. Vestibulum blandit feugiat finibus. Vestibulum vel odio quis nibh convallis pulvinar. Proin laoreet, urna eu vestibulum ornare, libero ex congue dolor, et mattis purus odio vitae tortor. Suspendisse ultrices consectetur eros, ac congue sem mattis in. Curabitur diam mi, dignissim vel varius ullamcorper nam.";
+
 		try (Socket socket = new Socket("localhost", 9000)) {
-			
 			socket.setSoTimeout(10000);
-			
+
 			DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-			out.writeUTF("cert");
+			out.writeUTF("cifrar");
 			out.writeUTF("psp");
-			String linea = "Entra en tu cuenta de GitHub y haz un fork del repositorio https://github.com/DamFleming/PSP20240304 Cuando se haya completado el fork, clona desde Eclipse tu nuevo repositorio e importa el proyecto. Renombra el proyecto con tu nombre usando el formato siguiente: apellidos, nombre. Deshabilita cualquier conexión a Internet en el ordenador donde realizas el examen. Cuando finalices el examen: Exporta el proyecto a un archivo comprimido. Pide permiso para habilitar de nuevo la conexión de Internet. Entrega el archivo comprimido con el proyecto del examen en la tarea de Teams. Ejecuta un commit & push con el repositorio";
 			out.write(linea.getBytes());
 			socket.shutdownOutput();
-			
+
 			DataInputStream in = new DataInputStream(socket.getInputStream());
-			String s; 
-			String answer = "";
-			while ((s = in.readUTF()) != "FIN:CIFRADO") {
-				answer += s.split(":")[1];
+			String ans = "";
+
+			String s;
+			Cipher cipher;
+			try {
+				cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+				cipher.init(Cipher.DECRYPT_MODE, ks.getKey("psp", "practicas".toCharArray()));
+				
+				int n = 0; 
+				while ((s = in.readUTF()) != null) {
+					try {
+					s = s.split(":")[1];
+					s = new String(cipher.doFinal(Base64.getDecoder().decode(s.getBytes())));
+					ans += s;
+					} catch (IllegalArgumentException | BadPaddingException e) {
+						break;
+					}
+				}
+			} catch (IllegalArgumentException e) {
+				e.printStackTrace();
+			} catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | UnrecoverableKeyException | KeyStoreException | IllegalBlockSizeException e) {
+				e.printStackTrace();
 			}
 			
-			Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-			cipher.init(Cipher.ENCRYPT_MODE, ks.getCertificate("psp"));
-			
-			int n = 0; 
-			byte[] buffer = new byte[256];
-			ByteArrayInputStream bytein = new ByteArrayInputStream(linea.getBytes());
-			String sol = "";
-			while ((n = bytein.read(buffer)) != -1) {
-				byte[] b = cipher.doFinal(buffer);
-				String b64HashB64 = Base64.getEncoder().encodeToString(b);
-				sol += b64HashB64;
-			}
-			System.out.println("sol: " + sol);
-			System.out.println("ans: " + answer);
-			assertEquals(answer.getBytes(), sol.getBytes());
-		} catch (UnknownHostException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			assertEquals(linea, ans);
+
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
-		} catch (NoSuchAlgorithmException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (NoSuchPaddingException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (InvalidKeyException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (KeyStoreException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IllegalBlockSizeException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (BadPaddingException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} 
-		
-//		try (Socket socket = new Socket("localhost", 9000)) {
-//			socket.setSoTimeout(10000);
-//			String accion = "cifrar";
-//			String alias = "psp";
-//			String s = "Entra en tu cuenta de GitHub y haz un fork del repositorio https://github.com/DamFleming/PSP20240304 Cuando se haya completado el fork, clona desde Eclipse tu nuevo repositorio e importa el proyecto. Renombra el proyecto con tu nombre usando el formato siguiente: apellidos, nombre. Deshabilita cualquier conexión a Internet en el ordenador donde realizas el examen. Cuando finalices el examen: Exporta el proyecto a un archivo comprimido. Pide permiso para habilitar de nuevo la conexión de Internet. Entrega el archivo comprimido con el proyecto del examen en la tarea de Teams. Ejecuta un commit & push con el repositorio";
-//			DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-//			out.writeUTF(accion);
-//			out.writeUTF(alias);
-//			out.writeUTF(s);
-//
-//			DataInputStream in = new DataInputStream(socket.getInputStream());
-//			String answer = "";
-//			String aux;
-//			while ((aux = in.readUTF()) != null) {
-//				String[] split = aux.split(":");
-//				answer += split[1];
-//			}
-//
-//			Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-//			String sol = Base64.getEncoder().encodeToString(cipher.doFinal(s.getBytes()));
-//			System.out.println("OK:" + sol);
-//			
-//			assertEquals(sol, answer);
-//		} catch (Exception e) {
-//			fail(e.getLocalizedMessage());
-//		}
+			fail(e.getLocalizedMessage());
+		}
 	}
 
 	@Test

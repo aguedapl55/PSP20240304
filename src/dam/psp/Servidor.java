@@ -6,7 +6,6 @@ import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
@@ -16,7 +15,6 @@ import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.security.PublicKey;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
@@ -189,46 +187,44 @@ public class Servidor extends Thread {
 			ks.load(new FileInputStream(System.getProperty("user.dir") + "/res/keystore.p12"), "practicas".toCharArray());
 			
 			alias = in.readUTF();
-			byte[] datos = in.readAllBytes();
-			if (!ks.containsAlias(alias)) {
+			byte[] linea = in.readAllBytes(); 
+			
+			if (linea.length == 0) {
+				out.writeUTF("ERROR:Se esperaban datos");
+				out.flush();
+			} else if (!ks.containsAlias(alias)) {
 				out.writeUTF("ERROR:'" + alias + "' no es un certificado");
 				out.flush();
-			} else if (ks.containsAlias(alias) && ks.isCertificateEntry(alias)) {
-				
+			} else if (ks.containsAlias(alias) && !ks.getCertificate(alias).getPublicKey().getAlgorithm().equals("RSA")) {
+				out.writeUTF("ERROR:'" + alias + "' no contiene una clave RSA");
+				out.flush();
+			} else {
 				try {
-					
 					Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-					cipher.init(Cipher.ENCRYPT_MODE, ks.getCertificate(alias));
+					cipher.init(Cipher.ENCRYPT_MODE, ks.getCertificate(alias).getPublicKey());
 					
 					int n = 0; 
 					byte[] buffer = new byte[256];
 					boolean aux = false; 
-					ByteArrayInputStream bytein = new ByteArrayInputStream(datos);
-					while ((n = bytein.read(buffer)) != -1) {
+					ByteArrayInputStream byteIn = new ByteArrayInputStream(linea);
+					while ((n = byteIn.read(buffer)) != -1) {
 						aux = true; 
-						byte[] b = cipher.doFinal(buffer);
+						byte[] b = cipher.doFinal(buffer, 0, n);
 						String b64HashB64 = Base64.getEncoder().encodeToString(b);
 						out.writeUTF("OK:" + b64HashB64);
-						System.out.println("OK:" + b64HashB64);
+						out.flush();
 					}
 					if (aux = true) {
 						out.writeUTF("FIN:CIFRADO");
 						out.flush(); 
-						System.out.println("FIN");
 					} else {
 						//creo que no tiene manera de llegar a esto pero por si acaso
 						out.writeUTF("ERROR:Se esperaban datos");
+						out.flush();
 					}
 				} catch (NoSuchPaddingException | InvalidKeyException | IllegalBlockSizeException | BadPaddingException e) {
 					e.printStackTrace();
 				}
-				
-			} else if (datos.length>0) {
-				out.writeUTF("ERROR:'" + alias + "' no contiene una clave RSA");
-				out.flush(); 
-			} else {
-				out.writeUTF("ERROR:Se esperaban datos");
-				out.flush(); 
 			}
 		} catch (SocketTimeoutException e) {
 			try {
@@ -238,16 +234,8 @@ public class Servidor extends Thread {
 				e1.printStackTrace();
 			}
 		} catch (EOFException e) {
-			if (alias.isBlank())
 				try {
 					out.writeUTF("ERROR:Se esperaba un alias");
-					out.flush();
-				} catch (IOException e1) {
-					e1.printStackTrace();
-				}
-			else
-				try {
-					out.writeUTF("ERROR:Se esperaban datos");
 					out.flush();
 				} catch (IOException e1) {
 					e1.printStackTrace();
